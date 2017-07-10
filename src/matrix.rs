@@ -8,6 +8,9 @@ use std::fmt::Debug;
 
 use complex::Complex;
 
+// Nalgebra crate doesn't support Complex operations on Matrices yet:
+// https://github.com/sebcrozet/nalgebra/issues/266
+// So we need to make our own implementation
 
 // TODO WARNING We are hitting this: https://github.com/rust-lang/rust/pull/42816 , stack overflow
 // because Rust default stack size for threads is about ~350Kbs? So, we need to use the heap
@@ -60,7 +63,6 @@ impl <T> Matrix<T>
         }
         m
     }
-
 
     pub fn as_slice(&self) -> &[T] {
         self.elements.as_slice()
@@ -155,10 +157,7 @@ impl <T> Matrix<T>
         return true;
     }
 
-    // kronecker product of two matrices of the same size!!
-    // # Panics
-    //
-    // We panic if matrices are not equal in size
+    // kronecker product of two matrices
     pub fn kronecker(&self, matrix: &Matrix<T>) -> Matrix<T> {
         debug!("kronecker: self.size={} matrix.size={}", self.size, matrix.size);
         //assert_eq!(self.size, matrix.size);
@@ -171,9 +170,9 @@ impl <T> Matrix<T>
                     let coeff = self.get(row1,col1);
                     //debug!("kronecker: c1:{} c2:{} r1:{} {:?}", col1, col2, row1,coeff);
                     for row2 in 0..matrix.size {
-                        // No post-increment in Rust, :(
                         res.elements[offset] = coeff.clone() * matrix.get(row2,col2);
                         //debug!("kronecker: c1:{} c2:{} r1:{} r2:{} {:?}", col1, col2, row1, row2, res.elements[offset]);
+                        // No post-increment in Rust, :(
                         offset += 1;
                     }
                 }
@@ -277,7 +276,7 @@ macro_rules! impl_ref_ops {
 macro_rules! impl_ref_ops_mixed {
     ($base:tt, ($type:ty, $input_type:ty), $Op:tt, $func:ident, ($sel:ident,$rhs:ident) $action:block) => {
         impl<'a> $Op<&'a $base<$input_type>> for &'a $base<$type>{
-            type Output = $base<$type>;
+            type Output = $base<$input_type>;
             fn $func($sel, $rhs: &'a $base<$input_type>) -> Self::Output
                 $action
         }
@@ -326,14 +325,14 @@ impl_ref_ops!(Matrix, f64, Mul, mul, (self,rhs){
     m
 });
 
-impl_ref_ops_mixed!(Matrix, (Complex, f64), Mul, mul, (self,rhs){
+impl_ref_ops_mixed!(Matrix, (f64, Complex), Mul, mul, (self,rhs){
     assert_eq!(self.size, rhs.size);
     let mut m = Matrix::<Complex>::new(self.size);
     for i in 0..self.size {
         for j in 0..self.size {
             let mut val = Complex::zero();
             for k in 0..self.size {
-                val = val +  self.get(i, k) * rhs.get(k, j);
+                val = val +  rhs.get(k, j) * self.get(i, k)
             }
             m.set(i, j, val);
         }

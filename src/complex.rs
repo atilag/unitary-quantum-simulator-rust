@@ -106,7 +106,7 @@ impl Complex {
     }
 
     pub fn scale(&self, t:f64) -> Complex {
-        Complex::new(self.re.clone() * t.clone(), self.im.clone() * t)
+        Complex::new(self.re * t, self.im * t)
     }
 }
 
@@ -204,10 +204,15 @@ impl Eq for Complex {}
 
 impl fmt::Debug for Complex {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:+.3} + {:+.3}i", self.re, self.im)
+        write!(f, "{} {} {}i", self.re, if self.im<0f64 {"-"} else {"+"}, self.im.abs())
     }
 }
 
+impl fmt::Display for Complex {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:.8e} {} {:.8e}i", self.re, if self.im<0f64 {"-"} else {"+"}, self.im.abs())
+    }
+}
 
 #[test]
 fn complex_test() {

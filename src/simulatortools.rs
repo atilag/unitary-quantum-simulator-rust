@@ -12,6 +12,7 @@ use gate::Gate;
 fn index1(b: usize, i: usize, k: usize) -> usize{
     let lowbits = k & ((1 << i) - 1); // Get the low i basis_gates
     let retval = ((((k >> i) << 1) | b) << i) | lowbits;
+    debug!("index1: retval = {}", retval);
     retval
 }
 
@@ -24,7 +25,7 @@ fn index2(b1: usize, i1: usize, b2: usize, i2: usize, k: usize) -> usize {
     if i1 > i2 {
         index1(b2, i2, index1(b1, i1 - 1, k))
     } else {
-        index1(b1, i1, index1(b2, i2 - 2, k))
+        index1(b1, i1, index1(b2, i2 - 1, k))
     }
 }
 
@@ -40,7 +41,6 @@ pub fn enlarge_single_opt(gate: &Gate<Complex>, qubit: usize, number_of_qubits: 
     let dim2 = 2usize.pow(qubit as u32);
     let temp1 = Matrix::identity(dim);
     let temp2 = Matrix::identity(dim2);
-    // TODO Nalgebra crate doesn't support Complex operations on Matrices yet: https://github.com/sebcrozet/nalgebra/issues/266
     temp1.kronecker(&gate.matrix.kronecker(&temp2))
 }
 
@@ -60,7 +60,7 @@ pub fn enlarge_two_opt(gate: &Gate<f64>, qubit0: usize, qubit1: usize, num: usiz
             for k in 0..2 {
                 for jj in 0..2{
                     for kk in 0..2{
-                        enlarge_gate[(index2(j, qubit0, k, qubit1, i), index2(jj, qubit0, kk, qubit1, 1))] = gate[(j + 2 * k, jj + 2 * kk)];
+                        enlarge_gate[(index2(j, qubit0, k, qubit1, i), index2(jj, qubit0, kk, qubit1, i))] = gate[(j + 2 * k, jj + 2 * kk)];
                     }
                 }
             }

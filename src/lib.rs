@@ -97,51 +97,11 @@ result =
                                  0.70710678 -8.65956056e-17j]
                                [ 0.70710678 +0.00000000e+00j
                                 -0.70710678 +8.65956056e-17j
-                                 0.000#[macro_use]
-extern crate serde_derive;00000 +0.00000000e+00j
+                                 0.00000000 +0.00000000e+00j
                                  0.00000000 +0.00000000e+00j]
             }
         'state': 'DONE'
         }
-**/ //{Python, PyDict, NoArgs, Objeself.circuitctProtocol, PyResult, PyString};
-
-/**
-This is the original circuit data structure. The one that generates the python Unroller:
-{
-    "qasm": [{
-        "gate_size": 1,
-        "name": "U",
-        "theta": 1.5707963267948966,
-        "phi": 0.0,
-        "lambda": 3.141592653589793,
-        "qubit_indices": [3]
-        },
-        {
-        "gate_size": 2,
-        "name": "CX",
-        "qubit_indices": [3, 4]
-        }],
-        "number_of_qubits": 8,
-        "qubit_order": {
-            ("a", 0): 0, <--- This is not valid JSON, keys must be strings (not tuples)
-            ("a", 1): 1,
-            ("a", 2): 2,
-            ("a", 3): 3,
-            ("b", 0): 4,
-            ("b", 1): 5,
-            ("b", 2): 6,
-            ("b", 3): 7
-        },
-        "number_of_cbits": 5,
-        "cbit_order": {
-            ("ans", 0): 0,
-            ("ans", 1): 1,
-            ("ans", 2): 2,
-            ("ans", 3): 3,
-            ("ans", 4): 4
-        },
-        "number_of_operations": 2
-}
 */
 
 extern crate serde;
@@ -162,7 +122,6 @@ pub mod gate;
 pub mod python;
 
 use std::collections::HashMap;
-//use na::*;
 use complex::Complex;
 use gate::Gate;
 use simulatortools::*;
@@ -174,7 +133,6 @@ pub struct UnitarySimulator {
     number_of_qubits: usize,
     result: HashMap<&'static str, serde_json::Value>,
     unitary_state: Matrix,
-    //unitary_state: DMatrix<Complex>,
     number_of_operations: usize
 }
 
@@ -189,25 +147,17 @@ impl UnitarySimulator {
         result.insert("result", json!({}));
         result.insert("status", json!({}));
 
-        /* TODO: Better sanity checks. Error control strategy */
         let number_of_qubits = match circuit["number_of_qubits"].as_u64() {
             Some(val) => val,
-            None => {
-                debug!("No number_of_qubits field. Defaulting to 5");
-            /* Defaults to 5 quibits */ 5u64
-            }
+            None => return Err("No number_of_qubits field in the circuit!!".to_string()),
         };
 
         let number_of_operations = match circuit["number_of_operations"].as_u64(){
             Some(val) => val,
-            None => {
-                debug!("No number_of_operations field. Defaulting to 0");
-                /* Defaults to 0 */ 0u64
-            }
+            None => return Err("No number_of_operations field in the circuit!!".to_string()),
         };
 
         let possible_states = 2usize.pow(number_of_qubits as u32);
-        //let unitary_state = DMatrix::<Complex>::identity(possible_states, possible_states);
         let unitary_state = Matrix::identity(possible_states);
 
         debug!("new: number_of_qubits={} number_of_operations={} unitary_state.size={}",
@@ -224,18 +174,20 @@ impl UnitarySimulator {
 
     fn add_unitary_single(&mut self, gate: &Gate<Complex>, qubit: usize){
         let unitary_add = enlarge_single_opt(gate, qubit, self.number_of_qubits);
-        // TODO dot() from numpy does a matrix mult when the input is a 2D Matrix,
+        debug!("add_unitary_single: unitary_add: {}", unitary_add);
+        // dot() from numpy does a matrix mult when the input is a 2D Matrix,
         // We don't use 2D Arrays so we should probably be using a simple Matrix mult.
         self.unitary_state = &unitary_add * &self.unitary_state; //dot product
-        //debug!("add_unitary_single: unitary_state: {}", self.unitary_state);
+        debug!("add_unitary_single: unitary_state: {}", self.unitary_state);
     }
 
     fn add_unitary_two(&mut self, gate: &Gate<f64>, qubit0: usize , qubit1: usize){
         let unitary_add = enlarge_two_opt(&gate, qubit0, qubit1, self.number_of_qubits);
-        // TODO dot() from numpy does a matrix mult when the input is a 2D Matrix,
+        debug!("add_unitary_two: unitary_add: {}", unitary_add);
+        // dot() from numpy does a matrix mult when the input is a 2D Matrix,
         // We don't use 2D Arrays so we should probably be using a simple Matrix mult.
-        self.unitary_state = &self.unitary_state * &unitary_add; //dot product
-        //debug!("add_unitary_two: unitary_state: {}",  self.unitary_state);
+        self.unitary_state = &unitary_add * &self.unitary_state; //dot product
+        debug!("add_unitary_two: unitary_state: {}",  self.unitary_state);
     }
 
     pub fn run(&mut self) -> Result<HashMap<&'static str, serde_json::Value>, String> {
@@ -244,29 +196,26 @@ impl UnitarySimulator {
             debug!("Gate: {}", c_qasm["name"].to_string().as_str());
             match c_qasm["name"].to_string().as_str() {
                 "\"U\"" => {
-                    debug!("Processing U gate...");
                     let qubit = c_qasm["qubit_indices"][0].as_i64().unwrap() as usize;
                     let theta  = c_qasm["theta"].as_f64().unwrap();
                     let phi = c_qasm["phi"].as_f64().unwrap();
                     let lam = c_qasm["lambda"].as_f64().unwrap();
-                    // TODO This must be an array of Complex, so let's make algebraic functions return Complex
+
                     let gate = Gate::<Complex>::from_slice(&[
                         Complex::new(f64::cos(theta/2.0f64),0.0f64),
-                        -(Complex::i() * lam).exp() * Complex::new(f64::sin(theta / 2.0f64),0.0f64),
+                        -(Complex::i() * lam).exp() * f64::sin(theta / 2.0f64),
                         (Complex::i() * phi).exp() * Complex::new(f64::sin(theta / 2.0f64),0.0f64),
-                        (Complex::i() * phi + Complex::i() * lam).exp() * Complex::new(f64::cos(theta / 2.0f64), 0.0f64)]).unwrap();
-                    debug!("qubit:'{}' theta:'{}' phi:'{}' lam:'{}' gate:'{}'", qubit, theta, phi, lam, gate);
+                        (Complex::i() * phi + Complex::i() * lam).exp() * Complex::new(f64::cos(theta / 2.0f64), 0.0f64)]);
+                    debug!("run: U match: qubit:'{}' theta:'{}' phi:'{}' lam:'{}' gate:'{}'", qubit, theta, phi, lam, gate);
                     self.add_unitary_single(&gate, qubit);
-                    //debug!("unitary_state: {}", self.unitary_state);
                 },
                 "\"CX\"" => {
-                    debug!("Processing CX gate...") ;
                     let qubit0 = c_qasm["qubit_indices"][0].as_i64().unwrap() as usize;
                     let qubit1 = c_qasm["qubit_indices"][1].as_i64().unwrap() as usize;
                     let gate = Gate::<f64>::from_slice(&[1.0f64, 0.0f64, 0.0f64, 0.0f64, 0.0f64, 0.0f64,
                                                          0.0f64, 1.0f64, 0.0f64, 0.0f64, 1.0f64, 0.0f64,
-                                                         0.0f64, 1.0f64, 0.0f64, 0.0f64]).unwrap();
-                    debug!("qubit0:'{}' qubit1:'{}' gate:'{}'", qubit0, qubit1, gate);
+                                                         0.0f64, 1.0f64, 0.0f64, 0.0f64]);
+                    debug!("run: CX match: qubit0:'{}' qubit1:'{}' gate:'{}'", qubit0, qubit1, gate);
                     self.add_unitary_two(&gate, qubit0, qubit1);
                 },
                 "\"measure\"" => {
@@ -284,7 +233,6 @@ impl UnitarySimulator {
         }
 
         *self.result.get_mut("data").unwrap().get_mut("unitary").unwrap() = json!(self.unitary_state.as_slice());
-        debug!("run: unitary_state={}", self.unitary_state);
         *self.result.get_mut("status").unwrap() = json!("DONE");
         Ok(self.result.clone())
     }
@@ -310,6 +258,7 @@ mod tests {
 
         let mut us = UnitarySimulator::new(qasm.to_string()).unwrap();
         let result = us.run().unwrap();
+        debug!("test: circuit1: result['data']['unitary']={}", result["data"]["unitary"]);
         assert_eq!(result["status"], json!("DONE"));
     }
 }

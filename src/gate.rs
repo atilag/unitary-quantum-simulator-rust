@@ -15,23 +15,22 @@ pub struct Gate<T=Complex>
 
 impl <T> Gate<T>
     where T: PartialEq + Debug + Clone + Zero + One {
-    // TODO Error control
-    pub fn new(size: usize, matrix: Matrix<T>) -> Result<Gate<T>, &'static str> {
-        Ok(Gate {
+    pub fn new(size: usize, matrix: Matrix<T>) -> Gate<T> {
+        Gate {
             size: size,
             matrix: matrix
-        })
+        }
     }
 
-    pub fn from_slice(array: &[T]) -> Result<Gate<T>,&'static str> {
-        Ok(Gate {
+    pub fn from_slice(array: &[T]) ->Gate<T> {
+        Gate {
             size: f64::log2(array.len() as f64) as usize,
             matrix: Matrix::<T>::new_from_row_slice(array)
-        })
+        }
     }
 }
 
-// TODO Make a macro!
+// TODO make macros!
 // We want to emulate 2D Array indices, so we use a tuple like (row, col)
 impl Index<(usize,usize)> for Gate<Complex> {
     type Output = Complex;
