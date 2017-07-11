@@ -4,7 +4,7 @@ use std::ops::{Index, IndexMut};
 use num::traits::{Zero, One};
 use std::cmp::PartialEq;
 use std::fmt;
-use std::fmt::{Debug, Display};
+use std::fmt::{Debug};
 
 #[derive(Debug)]
 pub struct Gate<T=Complex>

@@ -6,7 +6,7 @@ use cpython::*;
 use serde_json;
 
 macro_rules! PyErr_to_string {
-    ($x:expr) => ({""})
+    ($x:expr) => {format!("{:?}",$x)}
 }
 /* TODO Implement this macro properly, so we can extract the information of a PyErr as a string
 macro_rules! PyErr_to_string {
@@ -78,6 +78,20 @@ impl QiskitPython {
         if let Err(err) = unroller_result.call_method(py, "execute", NoArgs, None) {
             return Err(format!("Error: Calling Unroller::execute() method!!: {}", PyErr_to_string!(err)));
         }
+
+        let circuit = match unroller_result.getattr(py, "backend") {
+            Ok(backend) => {
+                match backend.getattr(py, "circuit") {
+                    Ok(_circuit) => _circuit,
+                    Err(err) => return Err(format!("Error: Gettging unroller.backend.circuit attribute: {}", PyErr_to_string!(err)))
+                }
+            }
+            Err(err) => return Err(format!("Error: Getting unroller.backend attribute: {}", PyErr_to_string!(err))),
+        };
+
+        info!("circuit: {:?}", circuit);
+
+
 
         // TODO We need to extract the circuit from any of the structures used in Python
         Ok(json!({
