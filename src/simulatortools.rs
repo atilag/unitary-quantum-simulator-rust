@@ -1,5 +1,4 @@
 
-//use na::*;
 use complex::Complex;
 use matrix::*;
 
@@ -12,7 +11,6 @@ use gate::Gate;
 fn index1(b: usize, i: usize, k: usize) -> usize{
     let lowbits = k & ((1 << i) - 1); // Get the low i basis_gates
     let retval = ((((k >> i) << 1) | b) << i) | lowbits;
-    debug!("index1: retval = {}", retval);
     retval
 }
 

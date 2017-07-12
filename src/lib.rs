@@ -109,23 +109,21 @@ extern crate serde;
 #[macro_use] extern crate serde_derive;
 extern crate nalgebra as na;
 extern crate num;
-extern crate cpython;
 #[macro_use] extern crate log;
 extern crate env_logger;
+extern crate cpython;
 
-
+pub mod python;
 pub mod macros;
 pub mod matrix;
 pub mod complex;
 pub mod simulatortools;
 pub mod gate;
-pub mod python;
 
 use std::collections::HashMap;
 use complex::Complex;
 use gate::Gate;
 use simulatortools::*;
-use python::QiskitPython;
 use matrix::*;
 
 pub struct UnitarySimulator {
@@ -139,22 +137,30 @@ pub struct UnitarySimulator {
 
 impl UnitarySimulator {
     pub fn new(compiled_circuit: String) -> Result<UnitarySimulator, String> {
-        let qiskit_python = QiskitPython::new()?;
-        let circuit = qiskit_python.get_backend_circuit(compiled_circuit)?;
+        // The Json received from Python is using simple quotes to represent strings,
+        // and that's not valid within the Json specs. We are going to replace all simple
+        // quotes while the bug is being fixed. But...
+        // TODO: We need take into account that could be values with simple quotes, and we
+        // DO NOT want to change those.
+        let parsed_circuit = compiled_circuit.replace("'", "\"");
+        let circuit : serde_json::Value = match serde_json::from_str(parsed_circuit.as_str()) {
+            Ok(_circuit) => _circuit,
+            Err(err) => return Err(format!("Error: parsing compiled circuit!!: {}", err)),
+        };
 
         let mut result = HashMap::new();
         result.insert("data",json!({"unitary":{}}));
         result.insert("result", json!({}));
         result.insert("status", json!({}));
 
-        let number_of_qubits = match circuit["number_of_qubits"].as_u64() {
+        let number_of_qubits = match circuit["header"]["number_of_qubits"].as_u64() {
             Some(val) => val,
             None => return Err("No number_of_qubits field in the circuit!!".to_string()),
         };
 
-        let number_of_operations = match circuit["number_of_operations"].as_u64(){
-            Some(val) => val,
-            None => return Err("No number_of_operations field in the circuit!!".to_string()),
+        let number_of_operations = match circuit["operations"].as_array() {
+            Some(operations) => operations.len(),
+            None => return Err("No operations field in the circuit!!".to_string())
         };
 
         let possible_states = 2usize.pow(number_of_qubits as u32);
@@ -192,26 +198,26 @@ impl UnitarySimulator {
 
     pub fn run(&mut self) -> Result<HashMap<&'static str, serde_json::Value>, String> {
         for j in 0..self.number_of_operations {
-            let c_qasm = self.circuit["qasm"][j].clone();
+            let c_qasm = self.circuit["operations"][j].clone();
             debug!("Gate: {}", c_qasm["name"].to_string().as_str());
             match c_qasm["name"].to_string().as_str() {
                 "\"U\"" => {
-                    let qubit = c_qasm["qubit_indices"][0].as_i64().unwrap() as usize;
-                    let theta  = c_qasm["theta"].as_f64().unwrap();
-                    let phi = c_qasm["phi"].as_f64().unwrap();
-                    let lam = c_qasm["lambda"].as_f64().unwrap();
+                    let qubit = c_qasm["qubits"][0].as_i64().unwrap() as usize;
+                    let theta  = c_qasm["params"][0].as_f64().unwrap();
+                    let phi = c_qasm["params"][1].as_f64().unwrap();
+                    let lam = c_qasm["params"][2].as_f64().unwrap();
 
                     let gate = Gate::<Complex>::from_slice(&[
                         Complex::new(f64::cos(theta/2.0f64),0.0f64),
                         -(Complex::i() * lam).exp() * f64::sin(theta / 2.0f64),
                         (Complex::i() * phi).exp() * Complex::new(f64::sin(theta / 2.0f64),0.0f64),
                         (Complex::i() * phi + Complex::i() * lam).exp() * Complex::new(f64::cos(theta / 2.0f64), 0.0f64)]);
-                    debug!("run: U match: qubit:'{}' theta:'{}' phi:'{}' lam:'{}' gate:'{}'", qubit, theta, phi, lam, gate);
+                    debug!("run: U match: qubqiskit_pythonit:'{}' theta:'{}' phi:'{}' lam:'{}' gate:'{}'", qubit, theta, phi, lam, gate);
                     self.add_unitary_single(&gate, qubit);
                 },
                 "\"CX\"" => {
-                    let qubit0 = c_qasm["qubit_indices"][0].as_i64().unwrap() as usize;
-                    let qubit1 = c_qasm["qubit_indices"][1].as_i64().unwrap() as usize;
+                    let qubit0 = c_qasm["qubits"][0].as_i64().unwrap() as usize;
+                    let qubit1 = c_qasm["qubits"][1].as_i64().unwrap() as usize;
                     let gate = Gate::<f64>::from_slice(&[1.0f64, 0.0f64, 0.0f64, 0.0f64, 0.0f64, 0.0f64,
                                                          0.0f64, 1.0f64, 0.0f64, 0.0f64, 1.0f64, 0.0f64,
                                                          0.0f64, 1.0f64, 0.0f64, 0.0f64]);
@@ -224,6 +230,9 @@ impl UnitarySimulator {
                 "\"reset\"" => {
                     warn!("Warning: Reset has been dropped from unitary simulator");
                 },
+                "\"barrier\"" => {
+                    () // Pass
+                }
                 _ => {
                     error!("Error: Unknown gate type!!");
                     *self.result.get_mut("status").unwrap() = json!("ERROR");
@@ -239,26 +248,40 @@ impl UnitarySimulator {
 }
 
 
-
 #[cfg(test)]
+
 mod tests {
-    use UnitarySimulator;
-    use env_logger;
+
+use super::python::QiskitPython;
+use super::env_logger;
+use super::UnitarySimulator;
+use super::Matrix;
+use super::Complex;
+
     #[test]
     fn circuit1() {
         env_logger::init().ok().expect("Error initializing loggger");
-        let qasm = r#"OPENQASM 2.0;
-            include "qelib1.inc";
-
-            qreg a[4];
-            qreg b[4];
-            creg ans[5];
-            h a[3];
-            cx a[3],b[0];"#;
-
-        let mut us = UnitarySimulator::new(qasm.to_string()).unwrap();
+        let qiskit = QiskitPython::new().unwrap();
+        let circuit = qiskit.get_qasm_circuit("example", "example/example.qasm").unwrap();
+        let backend_circuit = qiskit.get_backend_circuit(circuit).unwrap();
+        let mut us = UnitarySimulator::new(backend_circuit.to_string()).unwrap();
         let result = us.run().unwrap();
-        debug!("test: circuit1: result['data']['unitary']={}", result["data"]["unitary"]);
+
+        let dim = ((result["data"]["unitary"].as_array().unwrap().len()) as f64).sqrt() as usize;
+        info!("dim = {}", dim);
+        let unitary_vec : Vec<Complex> = (*result["data"]["unitary"].as_array().unwrap()).iter()
+                            .map(|val| {
+                                let complex = val.as_object().unwrap();
+                                Complex::new(complex["re"].as_f64().unwrap(),
+                                             complex["im"].as_f64().unwrap())
+                            })
+                            .collect();
+
+        //let mut quantum_state = Matrix::new_from_value(dim, 0.0f64);
+        let mut quantum_state = vec![0.0f64;dim];
+        quantum_state[0] = 1.0f64;
+        let unitary = Matrix::new_from_vector(dim, unitary_vec);
+        debug!("{}", Matrix::<Complex>::dot(&unitary, &quantum_state));
         assert_eq!(result["status"], json!("DONE"));
     }
 }

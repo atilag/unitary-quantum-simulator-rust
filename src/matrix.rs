@@ -182,11 +182,27 @@ impl <T> Matrix<T>
         res
     }
 
+    pub fn dot(matrix: &Matrix<Complex>, vector: &Vec<f64>) -> Matrix<Complex> {
+        assert_eq!(matrix.size(), vector.len());
+        let mut v = Vec::<Complex>::with_capacity(vector.len());
+        let mut offset = 0;
+        let mut end = matrix.size();
+        for _ in 0..matrix.size(){
+            v.push(matrix.elements[offset..end].iter().zip(vector.iter()).fold(Complex::zero(), |acc, (a,b)| acc + *a * *b));
+            offset = end;
+            end += matrix.size();
+        }
+
+        Matrix::new_from_vector(f64::sqrt(v.len() as f64) as usize, v)
+    }
+
+
     /// Size of the matrix.
     pub fn size(&self) -> usize {
         self.size
     }
 
+    // TODO: Return a reference?
     /// Get the element in position `(i, j)`.
     pub fn get(&self, i: usize, j: usize) -> T {
         self.elements[i * self.size + j].clone()
@@ -276,7 +292,7 @@ macro_rules! impl_ref_ops {
 macro_rules! impl_ref_ops_mixed {
     ($base:tt, ($type:ty, $input_type:ty), $Op:tt, $func:ident, ($sel:ident,$rhs:ident) $action:block) => {
         impl<'a> $Op<&'a $base<$input_type>> for &'a $base<$type>{
-            type Output = $base<$input_type>;
+            type Output = $base<Complex>;
             fn $func($sel, $rhs: &'a $base<$input_type>) -> Self::Output
                 $action
         }
@@ -340,6 +356,20 @@ impl_ref_ops_mixed!(Matrix, (f64, Complex), Mul, mul, (self,rhs){
     m
 });
 
+impl_ref_ops_mixed!(Matrix, (Complex, f64), Mul, mul, (self,rhs){
+    assert_eq!(self.size, rhs.size);
+    let mut m = Matrix::<Complex>::new(self.size);
+    for i in 0..self.size {
+        for j in 0..self.size {
+            let mut val = Complex::zero();
+            for k in 0..self.size {
+                val = val + self.get(i, k) * rhs.get(k, j)
+            }
+            m.set(i, j, val);
+        }
+    }
+    m
+});
 
 // We want to emulate 2D Array indices, so we use a tuple like (row, col)
 impl<T> Index<(usize,usize)> for Matrix<T> {
