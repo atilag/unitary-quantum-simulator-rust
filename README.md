@@ -2,8 +2,8 @@
 Rust version of the Unitary Simulator found in the Python QISKit.
 
 ## General
-It includes a run.sh script that will handle all the required setup to run
-the simulator tests.
+Includes a run.sh script that will handle all the required setup to run
+the simulator tests, and build the libraries.
 
 ## Prerequisites
 It requires Rust building environment (stable branch). Follow [this guide](https://www.rust-lang.org/en-US/install.html)
