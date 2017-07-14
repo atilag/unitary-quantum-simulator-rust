@@ -17,91 +17,23 @@
 # =============================================================================
 */
 /**
-Contains a (slow) Python simulator that returns the unitary of the circuit.
+Contains a Rust simulator that returns the unitary of the circuit.
 
-Author: Jay Gambetta and John Smolin
+Authors: Juan Gómez Mosquera
+Based on the Python Unitary Simulator created by: Jay Gambetta and John Smolin
 
 It simulates a unitary of a quantum circuit that has been compiled to run on
 the simulator. It is exponential in the number of qubits.
 
 The input is the circuit object and the output is the same circuit object with
-a result field added results['data']['unitary'] where the unitary is
+a result field added results["data"]["unitary"] where the unitary is
 a 2**n x 2**n complex numpy array representing the unitary matrix.
-
 
 The input is
     compiled_circuit object
 and the output is the results object
 
-The simulator is run using
-
-    UnitarySimulator(compiled_circuit).run().
-
 In the qasm, key operations with type 'measure' and 'reset' are dropped.
-
-Internal circuit_object
-
-circuit =
-    {
-    'number_of_qubits': 2,
-    'number_of_cbits': 2,
-    'number_of_operations': 4,
-    'qubit_order': {('q', 0): 0, ('v', 0): 1}
-    'cbit_order': {('c', 1): 1, ('c', 0): 0},
-    'qasm':
-        [{
-        'type': 'gate',
-        'name': 'U',
-        'theta': 1.570796326794897
-        'phi': 1.570796326794897
-        'lambda': 1.570796326794897
-        'qubit_indices': [0],
-        'gate_size': 1,
-        },
-        {
-        'type': 'gate',
-        'name': 'CX',
-        'qubit_indices': [0, 1],
-        'gate_size': 2,
-        },
-        {
-        'type': 'reset', //TODO: Validate if reset uses name "reset"
-        'name': 'reset',
-        'qubit_indices': [1]
-        }
-        {
-        'type': 'measure', //TODO: Validate if measure uses name "measure"
-        'name': 'measure',
-        'cbit_indices': [0],
-        'qubit_indices': [0]self.circuit
-        }],
-    }
-
-returned results object
- //{Python, PyDict, NoArgs, ObjectProtocol, PyResult, PyString};
-result =
-        {
-        'data':
-            {
-            'unitary': np.array([[ 0.70710678 +0.00000000e+00j
-                                 0.70710678 -8.65956056e-17j
-                                 0.00000000 +0.00000000e+00j
-                                 0.00000000 +0.00000000e+00j]
-                               [ 0.00000000 +0.00000000e+00j
-                                 0self.circuit.00000000 +0.00000000e+00j
-                                 0.70710678 +0.00000000e+00j
-                                 -0.70710678 +8.65956056e-17j]
-                               [ 0.00000000 +0.00000000e+00j
-                                 0.00000000 +0.00000000e+00j
-                                 0.70710678 +0.00000000e+00j
-                                 0.70710678 -8.65956056e-17j]
-                               [ 0.70710678 +0.00000000e+00j
-                                -0.70710678 +8.65956056e-17j
-                                 0.00000000 +0.00000000e+00j
-                                 0.00000000 +0.00000000e+00j]
-            }
-        'state': 'DONE'
-        }
 */
 
 extern crate serde;
@@ -277,11 +209,29 @@ use super::Complex;
                             })
                             .collect();
 
-        //let mut quantum_state = Matrix::new_from_value(dim, 0.0f64);
         let mut quantum_state = vec![0.0f64;dim];
         quantum_state[0] = 1.0f64;
         let unitary = Matrix::new_from_vector(dim, unitary_vec);
-        debug!("{}", Matrix::<Complex>::dot(&unitary, &quantum_state));
-        assert_eq!(result["status"], json!("DONE"));
+        let result = Matrix::<Complex>::dot(&unitary, &quantum_state);
+        let expected = Matrix::new_from_row_slice(&[
+            Complex::new(0.35355339059327384f64,0f64), Complex::new(0f64,0f64), Complex::new(0f64,0f64), Complex::new(0f64,0f64),
+            Complex::new(0f64,0f64), Complex::new(0f64,0f64), Complex::new(0f64,0f64), Complex::new(0f64,0f64),
+            Complex::new(0f64,0f64), Complex::new(0.3535533905932738f64,0f64), Complex::new(0f64,0f64), Complex::new(0f64,0f64),
+            Complex::new(0f64,0f64), Complex::new(0f64,0f64), Complex::new(0f64,0f64), Complex::new(0f64,0f64),
+            Complex::new(0f64,0f64), Complex::new(0f64,0f64), Complex::new(0.3535533905932738f64,0f64), Complex::new(0f64,0f64),
+            Complex::new(0f64,0f64), Complex::new(0f64,0f64), Complex::new(0f64,0f64), Complex::new(0f64,0f64),
+            Complex::new(0f64,0f64), Complex::new(0f64,0f64), Complex::new(0f64,0f64), Complex::new(0.35355339059327373f64,0f64),
+            Complex::new(0f64,0f64), Complex::new(0f64,0f64), Complex::new(0f64,0f64), Complex::new(0f64,0f64),
+            Complex::new(0f64,0f64), Complex::new(0f64,0f64), Complex::new(0f64,0f64), Complex::new(0f64,0f64),
+            Complex::new(0.3535533905932738f64,0f64), Complex::new(0f64,0f64), Complex::new(0f64,0f64), Complex::new(0f64,0f64),
+            Complex::new(0f64,0f64), Complex::new(0f64,0f64), Complex::new(0f64,0f64), Complex::new(0f64,0f64),
+            Complex::new(0f64,0f64), Complex::new(0.35355339059327373f64,0f64), Complex::new(0f64,0f64), Complex::new(0f64,0f64),
+            Complex::new(0f64,0f64), Complex::new(0f64,0f64), Complex::new(0f64,0f64), Complex::new(0f64,0f64),
+            Complex::new(0f64,0f64), Complex::new(0f64,0f64), Complex::new(0.35355339059327373f64,0f64), Complex::new(0f64,0f64),
+            Complex::new(0f64,0f64), Complex::new(0f64,0f64), Complex::new(0f64,0f64), Complex::new(0f64,0f64),
+            Complex::new(0f64,0f64), Complex::new(0f64,0f64), Complex::new(0f64,0f64), Complex::new(0.3535533905932737f64,0f64),
+        ]);
+
+        assert_eq!(expected, result);
     }
 }

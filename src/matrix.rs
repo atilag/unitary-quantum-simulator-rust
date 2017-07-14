@@ -56,7 +56,7 @@ impl <T> Matrix<T>
 
     pub fn new_from_row_slice(elements: &[T]) -> Matrix<T> {
         debug!("new_from_row_slice: elements.len={}", elements.len());
-        let size = f64::log2(elements.len() as f64) as usize;
+        let size = f64::sqrt(elements.len() as f64) as usize;
         let mut m = Matrix::<T>::new(size);
         for (i, elem) in elements.iter().enumerate() {
             m.set(i / size, i % size, elem.clone());
@@ -182,28 +182,13 @@ impl <T> Matrix<T>
         res
     }
 
-    pub fn dot(matrix: &Matrix<Complex>, vector: &Vec<f64>) -> Matrix<Complex> {
-        assert_eq!(matrix.size(), vector.len());
-        let mut v = Vec::<Complex>::with_capacity(vector.len());
-        let mut offset = 0;
-        let mut end = matrix.size();
-        for _ in 0..matrix.size(){
-            v.push(matrix.elements[offset..end].iter().zip(vector.iter()).fold(Complex::zero(), |acc, (a,b)| acc + *a * *b));
-            offset = end;
-            end += matrix.size();
-        }
-
-        Matrix::new_from_vector(f64::sqrt(v.len() as f64) as usize, v)
-    }
-
-
     /// Size of the matrix.
     pub fn size(&self) -> usize {
         self.size
     }
 
-    // TODO: Return a reference?
-    /// Get the element in position `(i, j)`.
+    // TODO: Return a reference? Let's wait for the benchmarks
+    /// Get the element at position `(i, j)`.
     pub fn get(&self, i: usize, j: usize) -> T {
         self.elements[i * self.size + j].clone()
     }
@@ -228,8 +213,48 @@ impl <T> Matrix<T>
         }
         true
     }
+
+    /// Dot product between a Matrix and a Vector
+    // TODO Implement as a method of Matrix, not a static one.
+    pub fn dot(matrix: &Matrix<Complex>, vector: &Vec<f64>) -> Matrix<Complex> {
+        assert_eq!(matrix.size(), vector.len());
+        let mut v = Vec::<Complex>::with_capacity(vector.len());
+        let mut offset = 0;
+        let mut end = matrix.size();
+        for _ in 0..matrix.size(){
+            v.push(matrix.elements[offset..end].iter().zip(vector.iter()).fold(Complex::zero(), |acc, (a,b)| acc + *a * *b));
+            offset = end;
+            end += matrix.size();
+        }
+
+        Matrix::new_from_vector(f64::sqrt(v.len() as f64) as usize, v)
+    }
+
+    /// It shows the rust code needed to declare this matrix statically
+    /// Pretty usefull for testing purposes
+    pub fn show_rust_code(matrix: &Matrix<Complex>) {
+        print!("*****************************************\n\n");
+        println!("let m = Matrix::new_from_row_slice(&[");
+        for i in 0..matrix.size() {
+            let mut line_break_counter = 0;
+            for j in 0..matrix.size() {
+                let c = matrix.get(i, j);
+                print!("Complex::new({}f64,{}f64), ", c.re(), c.im());
+                line_break_counter += 1;
+                if line_break_counter > 3 {
+                    println!("");
+                    line_break_counter = 0;
+                }
+            }
+        }
+        println!("]);\n\n");
+        print!("*****************************************\n");
+    }
 }
 
+///
+/// Traits implementation
+///
 impl<T> fmt::Debug for Matrix<T>
     where T: PartialEq + Debug + Clone + Zero + One {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -276,9 +301,9 @@ impl<T> PartialEq for Matrix<T>
     }
 }
 
-/**
-* Ops
-*/
+///
+/// Ops (Add, Mul, ...)
+///
 macro_rules! impl_ref_ops {
     ($base:tt, $type:ty, $Op:tt, $func:ident, ($sel:ident,$rhs:ident) $action:block) => {
         impl<'a> $Op<&'a $base<$type>> for &'a $base<$type>{
@@ -371,7 +396,7 @@ impl_ref_ops_mixed!(Matrix, (Complex, f64), Mul, mul, (self,rhs){
     m
 });
 
-// We want to emulate 2D Array indices, so we use a tuple like (row, col)
+// We want to emulate 2D Array indices, so we use a tuple-like input (row, col)
 impl<T> Index<(usize,usize)> for Matrix<T> {
     type Output = T;
     fn index<'a>(&'a self, index: (usize,usize)) -> &'a T {
@@ -389,15 +414,16 @@ impl<T> IndexMut<(usize,usize)> for Matrix<T> {
     }
 }
 
+
 #[test]
 fn matrix_test() {
     let m = m_real![1, 2; 3, 4];
 
-    let mut v = Matrix::new_from_vector(2, vec![Complex::zero();2]);
+    let mut v = Matrix::new_from_vector(2, vec![Complex::zero();4]);
     v[(0,0)] = c!(10f64, 0f64);
     v[(0,1)] = c!(20f64, 0f64);
 
-    let mut expected = Matrix::new_from_vector(2, vec![Complex::zero();2]);
+    let mut expected = Matrix::new_from_vector(2, vec![Complex::zero();4]);
     expected[(0,0)] = c!(50f64, 0f64);
     expected[(0,1)] = c!(110f64, 0f64);
 
@@ -464,4 +490,25 @@ fn kronecker_test() {
         Complex::new(0f64,0f64), Complex::new(0f64,0f64), Complex::new(1f64,0f64), Complex::new(1f64,0f64),
     ]);
     assert_eq!(res, expected);
+}
+
+#[test]
+fn dot_test() {
+    let temp1 = Matrix::new_from_row_slice(&[
+        Complex::new(1f64,1f64), Complex::new(2f64,2f64), Complex::new(3f64,3f64), Complex::new(4f64,4f64),
+        Complex::new(4f64,4f64), Complex::new(3f64,3f64), Complex::new(2f64,2f64), Complex::new(1f64,1f64),
+        Complex::new(1f64,4f64), Complex::new(2f64,3f64), Complex::new(3f64,2f64), Complex::new(4f64,1f64),
+        Complex::new(4f64,1f64), Complex::new(3f64,2f64), Complex::new(2f64,3f64), Complex::new(1f64,4f64),
+    ]);
+
+    let temp2 = vec![1.1f64, 2.2f64, 3.3f64, 4.4f64];
+
+    let expected = Matrix::new_from_row_slice(&[
+        Complex::new(33f64,33f64), Complex::new(22f64,22f64), Complex::new(33f64,22f64), Complex::new(22f64,33f64),
+    ]);
+
+    let res = Matrix::<Complex>::dot(&temp1, &temp2);
+
+    assert_eq!(res, expected);
+
 }

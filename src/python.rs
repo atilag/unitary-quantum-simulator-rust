@@ -9,7 +9,9 @@ use std::cell::RefCell;
 macro_rules! PyErr_to_string {
     ($x:expr) => {format!("{:?}",$x)}
 }
-/* TODO Implement this macro properly, so we can extract the information of a PyErr as a string
+/* TODO Implement this macro properly, so we can extract the information of a PyErr as a
+ * beatiful string*/
+ /*
 macro_rules! PyErr_to_string {
     ($x:expr) => ({
         let pvalue_str = match $x.pvalue {
@@ -53,7 +55,6 @@ impl<'a> QiskitPython<'a> {
         })
     }
 
-
     pub fn get_qasm_circuit(&'a self, name: &str, file: &str) -> Result<String, String> {
         self.maybe_init_qiskit()?;
         let quantum_program = self.get_quantum_program(&self.py.borrow().unwrap())?;
@@ -61,7 +62,6 @@ impl<'a> QiskitPython<'a> {
         Ok((*qasm_text.to_string(self.py.borrow().unwrap()).unwrap()).to_string())
     }
 
-    // TODO Return a String representing the Json? (so avoiding strong depedencies on serde)
     pub fn get_backend_circuit(&'a self, circuit: String) -> Result<String, String> {
         self.maybe_init_qiskit()?;
         let qasm = self.get_qasm_object(&self.py.borrow().unwrap(), circuit)?;
