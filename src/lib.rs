@@ -69,12 +69,6 @@ pub struct UnitarySimulator {
 
 impl UnitarySimulator {
     pub fn new(compiled_circuit: String) -> Result<UnitarySimulator, String> {
-        // The Json received from Python is using simple quotes to represent strings,
-        // and that's not valid within the Json specs. We are going to replace all simple
-        // quotes while the bug is being fixed. But...
-        // TODO: We need take into account that could be values with simple quotes, and we
-        // DO NOT want to change those.
-        let parsed_circuit = compiled_circuit.replace("'", "\"");
         let circuit : serde_json::Value = match serde_json::from_str(parsed_circuit.as_str()) {
             Ok(_circuit) => _circuit,
             Err(err) => return Err(format!("Error: parsing compiled circuit!!: {}", err)),
