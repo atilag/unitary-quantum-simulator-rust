@@ -69,7 +69,7 @@ pub struct UnitarySimulator {
 
 impl UnitarySimulator {
     pub fn new(compiled_circuit: String) -> Result<UnitarySimulator, String> {
-        let circuit : serde_json::Value = match serde_json::from_str(parsed_circuit.as_str()) {
+        let circuit : serde_json::Value = match serde_json::from_str(compiled_circuit.as_str()) {
             Ok(_circuit) => _circuit,
             Err(err) => return Err(format!("Error: parsing compiled circuit!!: {}", err)),
         };

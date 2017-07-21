@@ -5,6 +5,7 @@
 use cpython::*;
 use std::rc::Rc;
 use std::cell::RefCell;
+use std::str;
 
 macro_rules! PyErr_to_string {
     ($x:expr) => {format!("{:?}",$x)}
@@ -68,22 +69,25 @@ impl<'a> QiskitPython<'a> {
         let program = self.parse(&self.py.borrow().unwrap(), &qasm)?;
         let unroller = self.get_unroller(&self.py.borrow().unwrap(), &program)?;
 
-        if let Err(err) = unroller.call_method(self.py.borrow().unwrap(), "execute", NoArgs, None) {
-            return Err(format!("Error: Calling Unroller::execute() method!!: {}", PyErr_to_string!(err)));
-        }
-
-        let backend_circuit = match unroller.getattr(self.py.borrow().unwrap(), "backend") {
-            Ok(backend) => {
-                match backend.getattr(self.py.borrow().unwrap(), "circuit") {
-                    Ok(_circuit) => _circuit,
-                    Err(err) => return Err(format!("Error: Gettging unroller.backend.circuit attribute: {}", PyErr_to_string!(err)))
-                }
-            }
-            Err(err) => return Err(format!("Error: Getting unroller.backend attribute: {}", PyErr_to_string!(err))),
+        let backend_circuit = match unroller.call_method(self.py.borrow().unwrap(), "execute", NoArgs, None) {
+            Ok(_backend_circuit) => _backend_circuit,
+            Err(err) => return Err(format!("Error: Calling Unroller::execute() method!!: {}",
+                                            PyErr_to_string!(err))),
         };
 
-        debug!("get_backend_circuit: backend_circuit: {:?}", backend_circuit);
-        Ok((backend_circuit.to_string()))
+        let backend_bytes = match backend_circuit.extract::<PyBytes>(self.py.borrow().unwrap()) {
+            Ok(_backend_bytes) => _backend_bytes,
+            Err(err) => return Err(format!("Error: Cannot extract the circuit byte array!!: {}",
+                                            PyErr_to_string!(err))),
+        };
+
+        let circuit_string = match str::from_utf8(backend_bytes.data(self.py.borrow().unwrap())) {
+            Ok(_circuit_string) => _circuit_string,
+            Err(err) => return Err(format!("Error: Cannot convert the circuit byte array to a string!!: {}",
+                                            PyErr_to_string!(err))),
+        };
+
+        Ok(circuit_string.to_string())
     }
 
     fn maybe_init_qiskit(&'a self) -> Result<(),String> {
@@ -101,7 +105,8 @@ impl<'a> QiskitPython<'a> {
 
         match self.py.borrow().unwrap().import("qiskit") {
             Ok(qiskit) => Ok(*self.qiskit.borrow_mut() = Some(qiskit)),
-            Err(err) => return Err(format!("Error: while importing qiskit pyhton module: {}", PyErr_to_string!(err))),
+            Err(err) => return Err(format!("Error: while importing qiskit pyhton module: {}",
+                                            PyErr_to_string!(err))),
         }
     }
 
