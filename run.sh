@@ -17,6 +17,10 @@ case $1 in
         echo "  test [test]                 Runs the specified test"
 	    echo "  test [test] [debug|info]    Runs the specified test with the"
         echo "                              specified log level: debug or info"
+        echo "  profile                     Launchs the program with callgrind"
+        echo "  bench [benchmark]           Runs the benchmark/s"
+        echo "  example <example>           Run the specified example"
+        echo ""
         echo "  *Experimental* "
 	    echo "  debug </path/to/bin>        Runs the debugger (gdb)"
         echo ""
@@ -53,6 +57,27 @@ case $1 in
     	fi
     	command="gdb $2"
     	;;
+    profile)
+        command="valgrind --tool=callgrind target/debug/deps/unitary_simulator-b95ff46b10032741 circuit1"
+        ;;
+    bench)
+        command="cargo bench"
+        if [ -z "$2" ]
+        then
+            break
+        fi
+
+        command="cargo bench $2"
+        ;;
+    example)
+        if [ -z "$2" ]
+        then
+            echo "Error: Need to specify the example to run"
+            exit
+        fi
+        command="cargo build --example $2 $3 $4 $5 $6"
+        command2="cargo run --example $2 $3 $4 $5 $6"
+        ;;
 esac
 
 if [ -n "$environ" ]
@@ -62,4 +87,4 @@ fi
 
 $command
 echo "Command executed: "
-echo RUST_LOG=$RUST_LOG RUST_BACKTRACE=$RUST_BACKTRACE $command
+echo RUST_LOG=$RUST_LOG RUST_BACKTRACE=$RUST_BACKTRACE $command && $command2

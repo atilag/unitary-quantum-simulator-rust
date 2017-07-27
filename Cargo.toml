@@ -13,3 +13,8 @@ nalgebra = "0.12.3"
 num = "0.1"
 alga = "0.5.1"
 cpython = "0.1"
+bencher = "0.1.2"
+
+[[bench]]
+name = "unitary-simulator"
+harness = false
