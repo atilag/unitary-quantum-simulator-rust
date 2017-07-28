@@ -58,7 +58,8 @@ case $1 in
     	command="gdb $2"
     	;;
     profile)
-        command="valgrind --tool=callgrind target/debug/deps/unitary_simulator-b95ff46b10032741 circuit1"
+        #command="valgrind --tool=callgrind target/debug/examples/unitary_simulator_timeit-6de8c3951278e9fe 1"
+        command="cargo profiler callgrind --bin target/release/examples/unitary-simulator-timeit -- 1"
         ;;
     bench)
         command="cargo bench"
@@ -75,7 +76,7 @@ case $1 in
             echo "Error: Need to specify the example to run"
             exit
         fi
-        command="cargo build --example $2 $3 $4 $5 $6"
+        command="cargo build --release --example $2 $3 $4 $5 $6"
         command2="cargo run --example $2 $3 $4 $5 $6"
         ;;
 esac

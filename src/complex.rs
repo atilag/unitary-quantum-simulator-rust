@@ -6,6 +6,7 @@ use std::fmt;
 use std::ops::{Add, AddAssign, Mul, MulAssign, Neg};
 use num::{Zero, One};
 
+
 // Holds a complex number with 64-bit float parts.
 #[derive(Clone, Copy, Serialize)]
 pub struct Complex {
@@ -146,6 +147,16 @@ impl Mul<Complex> for Complex {
                      self.re * rhs.im + self.im * rhs.re)
     }
 }
+
+impl<'a, 'b> Mul<&'b Complex> for &'a Complex {
+    type Output = Complex;
+
+    fn mul(self, rhs: &'b Complex) -> Complex {
+        Complex::new(self.re * rhs.re - self.im * rhs.im,
+                     self.re * rhs.im + self.im * rhs.re)
+    }
+}
+
 impl MulAssign for Complex {
     fn mul_assign(&mut self, rhs: Complex) {
         *self = *self * rhs;
@@ -213,6 +224,7 @@ impl fmt::Display for Complex {
         write!(f, "{:.8e} {} {:.8e}i", self.re, if self.im<0f64 {"-"} else {"+"}, self.im.abs())
     }
 }
+
 
 #[test]
 fn complex_test() {

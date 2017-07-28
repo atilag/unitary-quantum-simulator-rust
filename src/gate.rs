@@ -8,13 +8,13 @@ use std::fmt::{Debug};
 
 #[derive(Debug)]
 pub struct Gate<T=Complex>
-    where T: PartialEq + Debug + Clone + Zero + One {
+    where T: PartialEq + Debug + Clone + Zero + One + Copy {
         pub size: usize,
         pub matrix: Matrix<T>
 }
 
 impl <T> Gate<T>
-    where T: PartialEq + Debug + Clone + Zero + One {
+    where T: PartialEq + Debug + Clone + Zero + One + Copy{
     pub fn new(size: usize, matrix: Matrix<T>) -> Gate<T> {
         Gate {
             size: size,

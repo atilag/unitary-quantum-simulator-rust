@@ -14,6 +14,7 @@ num = "0.1"
 alga = "0.5.1"
 cpython = "0.1"
 bencher = "0.1.2"
+cpuprofiler = "0.0.3"
 
 [[bench]]
 name = "unitary-simulator"

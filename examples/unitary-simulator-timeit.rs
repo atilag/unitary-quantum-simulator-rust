@@ -1,11 +1,12 @@
 extern crate unitary_simulator;
+extern crate cpuprofiler;
 
 use unitary_simulator::UnitarySimulator;
 use unitary_simulator::python::QiskitPython;
 use std::env;
-use std::time::{Duration, Instant};
 use std::str::FromStr;
 use std::process::exit;
+use cpuprofiler::PROFILER;
 
 fn bench_circuit1(num_iters: u64){
     let qiskit = QiskitPython::new().unwrap();
@@ -13,10 +14,10 @@ fn bench_circuit1(num_iters: u64){
     let backend_circuit = qiskit.get_backend_circuit(circuit).unwrap();
     let mut us = UnitarySimulator::new(backend_circuit.to_string()).unwrap();
     let mut sum = Duration::new(0u64,0u32);
-    for _ in 0..num_iters {
-        let now = Instant::now();
+    for i in 0..num_iters {
+        PROFILER.lock().unwrap().start("./time-run.profile").expect("Couldn't start time profiler!");
         us.run();
-        sum += now.elapsed();
+        PROFILER.lock().unwrap().stop().expect("Coudln't stop time profiler!");
     }
     println!("Circuit run: {} times. Total time: {}", num_iters,
                sum.as_secs() as f64 + sum.subsec_nanos() as f64 * 1e-9);

@@ -8,6 +8,9 @@ use std::fmt::Debug;
 
 use complex::Complex;
 
+
+
+
 // Nalgebra crate doesn't support Complex operations on Matrices yet:
 // https://github.com/sebcrozet/nalgebra/issues/266
 // So we need to make our own implementation
@@ -19,14 +22,14 @@ use complex::Complex;
 
 
 /// Represents a square matrix
-#[allow(missing_copy_implementations)]
+// #[allow(missing_copy_implementations)]
 pub struct Matrix<T=Complex> {
     size: usize,
     elements : Vec<T>,
 }
 
 impl <T> Matrix<T>
-    where T: PartialEq + Debug + Clone + Zero + One {
+    where T: PartialEq + Debug + Clone + Zero + One + Mul<Output = T> + Copy {
     /// Construct a new zero-initialized matrix of given size.
     pub fn new(size: usize) -> Matrix<T> {
         Matrix {
@@ -48,7 +51,7 @@ impl <T> Matrix<T>
         let mut m = Matrix::<T>::new(size);
 
         for (i, elem) in elements.iter().enumerate() {
-            m.set(i / size, i % size, elem.clone());
+            m.set(i / size, i % size, elem);
         }
 
         m
@@ -59,7 +62,7 @@ impl <T> Matrix<T>
         let size = f64::sqrt(elements.len() as f64) as usize;
         let mut m = Matrix::<T>::new(size);
         for (i, elem) in elements.iter().enumerate() {
-            m.set(i / size, i % size, elem.clone());
+            m.set(i / size, i % size, elem);
         }
         m
     }
@@ -170,7 +173,7 @@ impl <T> Matrix<T>
                     let coeff = self.get(row1,col1);
                     //debug!("kronecker: c1:{} c2:{} r1:{} {:?}", col1, col2, row1,coeff);
                     for row2 in 0..matrix.size {
-                        res.elements[offset] = coeff.clone() * matrix.get(row2,col2);
+                        res.elements[offset] = *coeff * *matrix.get(row2,col2);
                         //debug!("kronecker: c1:{} c2:{} r1:{} r2:{} {:?}", col1, col2, row1, row2, res.elements[offset]);
                         // No post-increment in Rust, :(
                         offset += 1;
@@ -189,13 +192,16 @@ impl <T> Matrix<T>
 
     // TODO: Return a reference? Let's wait for the benchmarks
     /// Get the element at position `(i, j)`.
-    pub fn get(&self, i: usize, j: usize) -> T {
-        self.elements[i * self.size + j].clone()
+    ///pub fn get(&self, i: usize, j: usize) -> T {
+    ///    self.elements[i * self.size + j].clone()
+    ///}
+    pub fn get(&self, i: usize, j: usize) -> &T {
+        &self.elements[i * self.size + j]
     }
 
     /// Set the element in position `(i, j)` to `value`.
-    pub fn set(&mut self, i: usize, j: usize, value: T) {
-        self.elements[i * self.size + j] = value
+    pub fn set(&mut self, i: usize, j: usize, value: &T) {
+        self.elements[i * self.size + j] = *value
     }
 
     /// Approximately equal test.
@@ -256,7 +262,7 @@ impl <T> Matrix<T>
 /// Traits implementation
 ///
 impl<T> fmt::Debug for Matrix<T>
-    where T: PartialEq + Debug + Clone + Zero + One {
+    where T: PartialEq + Debug + Clone + Zero + One + Copy {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "Matrix(size={}, elements=[", self.size).ok();
         for i in 0..self.size {
@@ -270,7 +276,7 @@ impl<T> fmt::Debug for Matrix<T>
 }
 
 impl<T> fmt::Display for Matrix<T>
-    where T: PartialEq + Debug + Clone + Zero + One {
+    where T: PartialEq + Debug + Clone + Zero + One + Copy {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         // Cuadratic matrices always
         write!(f, "\nMatrix {}x{}\n[", self.size, self.size).ok();
@@ -325,18 +331,18 @@ macro_rules! impl_ref_ops_mixed {
 }
 
 
-impl_ref_ops!(Matrix, Complex, Add, add, (self,rhs) {
+impl_ref_ops!(Matrix, Complex, Add, add, (self, rhs) {
     assert_eq!(self.size, rhs.size);
     let mut m = Matrix::<Complex>::new(self.size);
     for i in 0..self.size {
         for j in 0..self.size {
-            m.set(i, j, self.get(i, j) + rhs.get(i, j));
+            m.set(i, j, &(*self.get(i, j) + *rhs.get(i, j)));
         }
     }
     m
 });
 
-impl_ref_ops!(Matrix, Complex, Mul, mul, (self,rhs){
+impl_ref_ops!(Matrix, Complex, Mul, mul, (self, rhs){
     assert_eq!(self.size, rhs.size);
     let mut m = Matrix::<Complex>::new(self.size);
     for i in 0..self.size {
@@ -345,22 +351,22 @@ impl_ref_ops!(Matrix, Complex, Mul, mul, (self,rhs){
             for k in 0..self.size {
                 val = val +  self.get(i, k) * rhs.get(k, j);
             }
-            m.set(i, j, val);
+            m.set(i, j, &val);
         }
     }
     m
 });
 
-impl_ref_ops!(Matrix, f64, Mul, mul, (self,rhs){
+impl_ref_ops!(Matrix, f64, Mul, mul, (self, rhs){
     assert_eq!(self.size, rhs.size);
     let mut m = Matrix::<f64>::new(self.size);
     for i in 0..self.size {
         for j in 0..self.size {
             let mut val = f64::zero();
             for k in 0..self.size {
-                val = val +  self.get(i, k) * rhs.get(k, j);
+                val = val +  *self.get(i, k) * *rhs.get(k, j);
             }
-            m.set(i, j, val);
+            m.set(i, j, &val);
         }
     }
     m
@@ -373,9 +379,9 @@ impl_ref_ops_mixed!(Matrix, (f64, Complex), Mul, mul, (self,rhs){
         for j in 0..self.size {
             let mut val = Complex::zero();
             for k in 0..self.size {
-                val = val +  rhs.get(k, j) * self.get(i, k)
+                val = val +  *rhs.get(k, j) * *self.get(i, k)
             }
-            m.set(i, j, val);
+            m.set(i, j, &val);
         }
     }
     m
@@ -388,9 +394,9 @@ impl_ref_ops_mixed!(Matrix, (Complex, f64), Mul, mul, (self,rhs){
         for j in 0..self.size {
             let mut val = Complex::zero();
             for k in 0..self.size {
-                val = val + self.get(i, k) * rhs.get(k, j)
+                val = val + *self.get(i, k) * *rhs.get(k, j)
             }
-            m.set(i, j, val);
+            m.set(i, j, &val);
         }
     }
     m
