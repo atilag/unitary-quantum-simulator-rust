@@ -1,8 +1,8 @@
 #!/bin/bash
 # TODO gdb seems to have problems with Python virtual envs like Anaconda, so
 # debugging with gdb is not working so far
-export PYTHONHOME=~/anaconda3:~/anaconda3/envs/TPIR
-export PYTHONPATH=$PYTHONPATH:~/anaconda3/envs/TPIR:~/ibm/quantum/private-qiskit-sdk-py-dev
+export PYTHONHOME=~/anaconda3:~/anaconda3/envs/QISKitenv
+export PYTHONPATH=$PYTHONPATH:~/anaconda3/envs/QISKitenv:~/ibm/quantum/qiskit-sdk-py
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:~/anaconda3/lib
 export RUST_BACKTRACE=1
 
