@@ -6,6 +6,7 @@ use unitary_simulator::python::QiskitPython;
 use std::env;
 use std::str::FromStr;
 use std::process::exit;
+use std::time::Duration;
 use cpuprofiler::PROFILER;
 
 fn bench_circuit1(num_iters: u64){
@@ -13,7 +14,7 @@ fn bench_circuit1(num_iters: u64){
     let circuit = qiskit.get_qasm_circuit("example", "example/example.qasm").unwrap();
     let backend_circuit = qiskit.get_backend_circuit(circuit).unwrap();
     let mut us = UnitarySimulator::new(backend_circuit.to_string()).unwrap();
-    let mut sum = Duration::new(0u64,0u32);
+    let sum = Duration::new(0u64,0u32);
     for i in 0..num_iters {
         PROFILER.lock().unwrap().start("./time-run.profile").expect("Couldn't start time profiler!");
         us.run();

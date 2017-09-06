@@ -201,8 +201,8 @@ impl<'a> QiskitPython<'a> {
              Err(err) => return Err(format!("Error: While instantiating QuantumProgram object!: {}", PyErr_to_string!(err))),
          };
 
-         if let Err(err) = quantum_program_instance.call_method(*py, "load_qasm", (name, file), None) {
-             return Err(format!("Error: While calling load_qasm method!: {}", PyErr_to_string!(err)));
+         if let Err(err) = quantum_program_instance.call_method(*py, "load_qasm_file", (file, name), None) {
+             return Err(format!("Error: While calling load_qasm_file method!: {}", PyErr_to_string!(err)));
          }
 
          match quantum_program_instance.call_method(*py, "get_qasm", (name,), None ) {

@@ -297,12 +297,11 @@ impl<T> PartialEq for Matrix<T>
     fn eq(&self, other: &Matrix<T>) -> bool {
         assert_eq!(self.size, other.size);
 
-        for i in 0..self.size {
+        for i in 0..self.size * self.size {
             if self.elements[i] != other.elements[i] {
                 return false;
             }
         }
-
         true
     }
 }
