@@ -3,7 +3,6 @@
 # debugging with gdb is not working so far
 export PYTHONHOME=~/anaconda3:~/anaconda3/envs/QISKitenv
 export PYTHONPATH=$PYTHONPATH:~/anaconda3/envs/QISKitenv:~/ibm/quantum/qiskit-sdk-py
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:~/anaconda3/lib
 export RUST_BACKTRACE=1
 
 command="cargo test -- --nocapture"
@@ -33,6 +32,8 @@ case $1 in
         command="cargo build"
 	    ;;
     test)
+        export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:~/anaconda3/lib
+
         if [ -z "$2" ]
         then
             break
@@ -50,6 +51,8 @@ case $1 in
     	esac
     	;;
     debug)
+        export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:~/anaconda3/lib
+
     	if [ -z "$2" ]
     	then
     	    echo "Error: No path to binary supplied!"
@@ -58,10 +61,14 @@ case $1 in
     	command="gdb $2"
     	;;
     profile)
+        export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:~/anaconda3/lib
+
         #command="valgrind --tool=callgrind target/debug/examples/unitary_simulator_timeit-6de8c3951278e9fe 1"
         command="cargo profiler callgrind --bin target/release/examples/unitary-simulator-timeit -- 1"
         ;;
     bench)
+        export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:~/anaconda3/lib
+
         command="cargo bench"
         if [ -z "$2" ]
         then
@@ -76,6 +83,8 @@ case $1 in
             echo "Error: Need to specify the example to run"
             exit
         fi
+        export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:~/anaconda3/lib
+
         command="cargo build --release --example $2 $3 $4 $5 $6"
         command2="cargo run --example $2 $3 $4 $5 $6"
         ;;
